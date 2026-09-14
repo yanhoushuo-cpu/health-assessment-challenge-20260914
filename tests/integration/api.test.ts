@@ -3,6 +3,17 @@ import { PrismaClient } from "@prisma/client";
 import { createServer, type Server } from "node:http";
 import { handleApi } from "../../src/http/api";
 
+const testDatabase = new URL(
+  process.env.DATABASE_URL ?? "postgresql://invalid/invalid",
+);
+if (
+  !testDatabase.pathname.endsWith("_test") ||
+  !/^test_[a-f0-9]{32}$/.test(testDatabase.searchParams.get("schema") ?? "")
+) {
+  throw new Error(
+    "Integration tests require the isolated schema created by npm test. Refusing database access.",
+  );
+}
 const db = new PrismaClient();
 let server: Server;
 let base: string;
@@ -114,6 +125,26 @@ afterAll(async () => {
   await db.$disconnect();
 });
 describe("real PostgreSQL HTTP lifecycle", () => {
+  it("database RLS prevents non-owner Data API roles from reading application tables", async () => {
+    const s = await session();
+    expect(await db.session.count({ where: { id: s.id } })).toBe(1);
+    await db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SET LOCAL ROLE pg_read_all_data");
+      for (const table of [
+        "User",
+        "Session",
+        "Assessment",
+        "AssessmentResult",
+        "Subscription",
+        "PaymentEvent",
+      ]) {
+        const rows = await tx.$queryRawUnsafe<Array<{ count: bigint }>>(
+          `SELECT count(*) FROM "${table}"`,
+        );
+        expect(rows[0].count).toBe(0n);
+      }
+    });
+  });
   it("handles payment contention longer than default Prisma acquisition timeout", async () => {
     const s = await session();
     await complete(s.cookie);

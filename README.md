@@ -1,4 +1,6 @@
-# 轻衡 · Health Assessment
+# 青禾 · Health Assessment
+
+[![Quality](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/ci.yml/badge.svg)](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/ci.yml)
 
 一个可以中断恢复、由服务端计算结果、并在模拟订阅后解锁完整结果的健康测评。重点是明确的数据边界、真实 PostgreSQL 上的并发与事务验证，以及可以重放的演示闭环。
 
@@ -130,7 +132,7 @@ erDiagram
   }
 ```
 
-核心答案为 typed columns，只有预测曲线使用 JSONB。测量值 `Decimal(5,2)`，接口和 domain 均拒绝超过两位的小数，避免数据库静默舍入。年龄/版本为整数，类别使用数据库枚举，时间使用带时区时间戳。SQL CHECK 补充数值、目标方向、完成状态、订阅日期、模拟金额约束。
+核心答案为 typed columns，只有预测曲线使用 JSONB。测量值 `Decimal(5,2)`，接口和 domain 均拒绝超过两位的小数，避免数据库静默舍入。年龄/版本为整数，类别使用数据库枚举，时间使用带时区时间戳。SQL CHECK 补充数值、目标方向、完成状态、订阅日期、模拟金额约束。所有业务表启用 RLS 且不设置浏览器角色策略，阻止 Supabase Data API 角色直接访问；服务端使用表 owner/BYPASSRLS 连接并执行自己的逐用户授权。
 
 当前范围每个用户一份测评、一个订阅；User→Session 是一对多。结果必须唯一关联测评；`(userId,idempotencyKey)` 唯一。Session 失效清理可走过期索引。外键级联适合删除完整匿名聚合；真实支付系统应另行设计不可删除的财务账本。扩展多次测评时移除 Assessment.userId 唯一键，并在 User 上显式选择当前测评。
 
@@ -214,7 +216,7 @@ BMI = kg / m²。按**未舍入**值分类 `<18.5 / <25 / <30 / ≥30`，显示�
 
 每次 `npm test` 创建随机 schema，迁移后执行，最后只 DROP 自己生成的 schema；不执行整库 reset。测试库名称保护 `_test` 防误用，仍应使用独立测试库凭据。各用例创建独立用户；测试内用于故障注入的 CHECK 在 finally 删除。测试 schema 隔离允许并行运行多个测试进程。
 
-GitHub Actions 的 Quality workflow 在 push/PR 执行安装、lint、typecheck、覆盖率、production build、Chromium E2E，并保留报告。没有真实成功运行前不展示绿色 badge。
+GitHub Actions 的 Quality workflow 在 push/PR 执行安装、lint、typecheck、覆盖率、production build、Chromium E2E，并保留报告。首次真实运行已通过，参见交付记录；最新提交结果可在仓库 Actions 页面检查。
 
 尚未覆盖：Safari/Firefox、移动真机、网络代理大规模压测、数据库主从切换/进程崩溃注入、真实支付签名、医学有效性、跨设备找回。原因分别是时间/设备与外部基础设施约束，以及本题模拟支付/匿名身份的范围。请求级数据库失败回滚与基本多连接竞争已覆盖，不能把这些测试等同生产容量证明。
 
@@ -230,7 +232,7 @@ curl -H 'Cookie: health_session=这里填写demo文件内的随机token' "$BASE/
 
 Supabase/Vercel 部署步骤：
 
-1. 创建专用 Supabase 项目，使用 PostgreSQL 连接信息。无需把 Supabase service_role key 给前端；禁用公开 Data API 或将业务表放到不公开的 schema。本项目只通过服务端数据库连接读写。
+1. 创建专用 Supabase 项目，使用 PostgreSQL 连接信息。无需把 Supabase service_role key 给前端；迁移已启用业务表 RLS，且没有 anon/authenticated 策略。服务端连接角色必须是表 owner 或具有 BYPASSRLS；不要给浏览器这些凭据。也可以额外关闭未使用的 Data API。本项目只通过服务端数据库连接读写。
 2. `DATABASE_URL` 使用平台支持的 PostgreSQL pooler 连接并配置较小 `connection_limit`；迁移推荐 direct/session pooler 连接，避免 transaction pooler DDL 限制。需要 transaction pooler 时依据 Supabase/Prisma 当期文档设置 `pgbouncer=true` 等参数。通过 TLS 连接，不禁用证书验证。
 3. 在安全本地环境临时使用迁移连接执行 `npm run db:migrate` 和 `DEMO_MODE=true npm run db:seed`；不要 reset 线上数据库。把生成 demo cookie 仅用于该演示交付。
 4. Vercel 导入此 GitHub 仓库，Next.js preset，Node 22。设置 DATABASE_URL、DEMO_MODE=true、APP_ORIGIN=实际线上域名；构建命令 `npm run build`。不向 Vercel 配置 TEST_DATABASE_URL，不把 migration 放入每次并发构建。
@@ -249,3 +251,5 @@ Supabase/Vercel 部署步骤：
 这些是代理提出与审查后实际发生的修正，**不是声称候选人亲自做过的独立判断**。候选人提交前应读代码、运行测试并用自己的话解释，补充自己真正接受/否决的决策。本项目没有把材料中 JSONB/前端隐藏的假设示例伪造为历史；从设计一开始就采用 typed columns 与服务端 DTO。
 
 参考产品观察与实施过程见 [产品观察](docs/product-observation.md)、[设计](docs/design.md) 和 [交付记录](docs/delivery.md)。
+
+

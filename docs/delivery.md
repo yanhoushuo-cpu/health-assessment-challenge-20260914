@@ -1,13 +1,36 @@
-# 实际交付状态
+# 实际交付状态 · 2026-09-14
 
-当前工作仍在验证中，此文件将在最终检查后更新。
+项目：青禾健康评估，Next.js + Prisma + PostgreSQL。
 
-- GitHub：本机 gh 已登录，可创建仓库；尚未记录发布完成。
-- Vercel：CLI 与浏览器均未登录，已请求用户登录。
-- Supabase：浏览器未登录，已请求用户登录。
-- 公网 URL：尚未部署，不用 localhost 冒充线上地址。
-- 参考产品：首页观察已记录；继续体验需要接受条款确认。
-- 本机 PostgreSQL：已实际运行，迁移已成功。
-- Demo seed：已执行，生成 paid/unpaid synthetic sessions；凭据保存在被忽略的 demo-sessions.json。
+## 可验证成果
 
-不自动向招聘方发送邮件。正式提交使用用户确认的姓名与实际交付日期。
+- GitHub：[完整代码仓库](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914)
+- CI：[Quality 实时状态](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/ci.yml)
+- 首次远端完整 CI 成功：[运行 34837849380](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34837849380)，含 npm ci、lint、typecheck、真实数据库覆盖率、production build、Chromium E2E。此链接对应初次提交，后续修正请以实时状态查看。
+- 本地运行：`npm run dev` → http://localhost:3000；在此机器 PostgreSQL 已运行，迁移与 seed 已执行。
+- 本地核心测试：90/90 通过（59 domain 单元 + 31 PostgreSQL HTTP 集成）。
+- 本地代码检查：lint 无错误/警告，TypeScript strict 通过，production build 通过。
+- 后端 src 覆盖率：行 94.27%、语句 94.09%、分支 88.94%、函数 100%；domain 文件四项均 100%。不把 UI 或数据库引擎本身计入该覆盖率。
+- 浏览器：Playwright 3/3 通过，实际 Next.js 与数据库上的 funnel、刷新恢复、免费保护字段不存在、模拟支付后完整结果、360px 布局；额外故障重试场景随测试文件提交。
+- Demo：本地 paid/unpaid 两份虚构 session；完整 cookie 位于 Git 忽略的 demo-sessions.json。sessionId 本身不是登录凭据。
+- Schema：3 份已运行迁移，包含 typed columns、外键/唯一约束、CHECK 和 RLS；README 中有 ER 图。
+
+## 尚未完成的必交项
+
+**没有公网演示 URL；不能视为本挑战全部完成。**
+
+实际检查发现 Vercel CLI/浏览器未登录，Supabase 浏览器未登录。已请求用户完成这两个平台的登录。下一步是登录后创建或选择 Supabase 项目，配置数据库私有连接，执行 migrations/seed，部署 Vercel，再从公网验证 funnel + /pay 与 paid/unpaid 差异，并更新线上 demo session。代码不依赖 SQLite 或进程内数据替代 PostgreSQL。
+
+竞品完整体验也未完成：BetterMe 首页继续按钮会接受第三方条款，尚未获得确认。已实际观察的首页与设计推断分开记在 product-observation.md，不声称查看过未打开的页面。
+
+提交前由候选人填写真实姓名，按【姓名】_全栈挑战_YYYYMMDD 命名文档，并确认 AI 复盘反映自己实际参与的判断。当前未向招聘方发送邮件。
+
+## 审查发现与修复证据
+
+1. 任意小数精度与两位曲线终点冲突、Date 溢出：先出现回归测试失败，再统一 domain 精度与时间验证。
+2. 完成接口原本只收空对象：旧标签页会确认最新他人修改；改收 version， stale completion 测试要求409。
+3. Prisma P2028：真实并发跑出过500；减少非必要交互事务、显式10秒事务等待、将暂时争用规范为503；测试2连接池+3秒行锁+同key并发。
+4. 完成前网络中断/启动加载失败出现空白页：增加可见错误、初始化重试与保存完成后的继续生成入口，Playwright注入一次503后走真实恢复。
+5. 本地 PostgreSQL helper 误把已有服务当自己启动：真实复现后增加端口占用拒绝、子进程就绪验证、finally释放映射；独立54339端口实际初始化/启动/建库/停止成功。
+6. Supabase Data API 旁路风险：所有业务表迁移开启RLS，不配置浏览器角色策略；以真实非owner读取角色证明不可读取，服务端owner仍可查询。
+

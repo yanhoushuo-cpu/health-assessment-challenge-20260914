@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type Step = "age" | "gender" | "goal" | "body" | "activity" | "complete";
 type Answers = {
@@ -116,30 +116,41 @@ export default function Home() {
   const [started, setStarted] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializationError, setInitializationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [modal, setModal] = useState(false);
   const [paymentKey, setPaymentKey] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        await ensureSession();
-        const current = await api<Assessment>("/api/v1/assessment/current");
-        setAssessment(current);
-        setActiveStep(current.currentStep);
-        if (current.status === "COMPLETED") {
-          setStarted(true);
-          setResult(await api<Result>("/api/v1/result"));
-        } else if (current.progress > 0) setStarted(true);
-      } catch (error) {
-        setMessage(errorText(error));
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const loadAssessment = useCallback(async () => {
+    await Promise.resolve();
+    setLoading(true);
+    setInitializationError("");
+    try {
+      await ensureSession();
+      const current = await api<Assessment>("/api/v1/assessment/current");
+      const completedResult =
+        current.status === "COMPLETED"
+          ? await api<Result>("/api/v1/result")
+          : null;
+      setAssessment(current);
+      setActiveStep(current.currentStep);
+      setResult(completedResult);
+      if (current.status === "COMPLETED" || current.progress > 0)
+        setStarted(true);
+    } catch (error) {
+      setAssessment(null);
+      setInitializationError(errorText(error));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const task = window.setTimeout(() => void loadAssessment(), 0);
+    return () => window.clearTimeout(task);
+  }, [loadAssessment]);
 
   useEffect(() => {
     if (!modal) return;
@@ -156,10 +167,18 @@ export default function Home() {
         if (!focusable.length) return;
         const first = focusable[0],
           last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        if (
+          event.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === dialogRef.current)
+        ) {
           event.preventDefault();
           last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last ||
+            document.activeElement === dialogRef.current)
+        ) {
           event.preventDefault();
           first.focus();
         }
@@ -211,9 +230,54 @@ export default function Home() {
         const latest = await api<Assessment>("/api/v1/assessment/current");
         setAssessment(latest);
         setActiveStep(latest.currentStep);
-        setMessage(
-          "你的评估已在别处更新，我们已同步到最新进度，请核对后继续。",
+        if (latest.status === "COMPLETED") {
+          try {
+            setResult(await api<Result>("/api/v1/result"));
+          } catch (resultError) {
+            setMessage(errorText(resultError));
+          }
+        } else {
+          setMessage(
+            "你的评估已在别处更新，我们已同步到最新进度，请核对后继续。",
+          );
+        }
+      } else setMessage(errorText(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function completeAssessment() {
+    if (!assessment) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      if (assessment.status === "COMPLETED") {
+        setResult(await api<Result>("/api/v1/result"));
+      } else {
+        setResult(
+          await api<Result>("/api/v1/assessment/current/complete", {
+            method: "POST",
+            body: JSON.stringify({ version: assessment.version }),
+          }),
         );
+      }
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.error?.code === "VERSION_CONFLICT") {
+        try {
+          const latest = await api<Assessment>("/api/v1/assessment/current");
+          setAssessment(latest);
+          setActiveStep(latest.currentStep);
+          if (latest.status === "COMPLETED")
+            setResult(await api<Result>("/api/v1/result"));
+          else
+            setMessage(
+              "你的评估已在别处更新，我们已同步到最新版本，请再次生成。",
+            );
+        } catch (syncError) {
+          setMessage(errorText(syncError));
+        }
       } else setMessage(errorText(error));
     } finally {
       setSaving(false);
@@ -256,6 +320,17 @@ export default function Home() {
         <div className="loader" aria-label="正在准备评估" />
       </main>
     );
+  if (initializationError)
+    return (
+      <main className="center recoveryPage">
+        <span className="eyebrow">CONNECTION PAUSED</span>
+        <h1>暂时无法载入评估</h1>
+        <p>{initializationError}</p>
+        <button className="primary" onClick={() => void loadAssessment()}>
+          重新载入
+        </button>
+      </main>
+    );
   return (
     <main>
       <header className="siteHeader">
@@ -264,7 +339,9 @@ export default function Home() {
         </a>
         <span className="privacy">匿名评估 · 数据仅用于本次演示</span>
       </header>
-      {!started && <Landing onStart={() => setStarted(true)} />}
+      {!started && assessment && (
+        <Landing onStart={() => setStarted(true)} disabled={!assessment} />
+      )}
       {started && !result && assessment && activeStep !== "complete" && (
         <AssessmentForm
           assessment={assessment}
@@ -275,6 +352,16 @@ export default function Home() {
           message={message}
         />
       )}
+      {started &&
+        !result &&
+        assessment &&
+        activeStep === "complete" && (
+          <CompletionReady
+            message={message}
+            saving={saving}
+            onComplete={() => void completeAssessment()}
+          />
+        )}
       {result && <ResultView result={result} onUnlock={() => setModal(true)} />}
       <footer>
         <span>健康，从理解自己开始。</span>
@@ -325,7 +412,13 @@ export default function Home() {
   );
 }
 
-function Landing({ onStart }: { onStart: () => void }) {
+function Landing({
+  onStart,
+  disabled,
+}: {
+  onStart: () => void;
+  disabled: boolean;
+}) {
   return (
     <section id="top" className="landing">
       <div className="heroCopy">
@@ -339,7 +432,7 @@ function Landing({ onStart }: { onStart: () => void }) {
           用大约 2
           分钟，梳理你的身体状态与目标。没有评判，只有一份清晰、可继续的起点。
         </p>
-        <button className="primary" onClick={onStart}>
+        <button className="primary" onClick={onStart} disabled={disabled}>
           开始健康评估 <span aria-hidden="true">→</span>
         </button>
         <div className="trust">
@@ -362,6 +455,29 @@ function Landing({ onStart }: { onStart: () => void }) {
           <em>to your body</em>
         </p>
       </div>
+    </section>
+  );
+}
+
+function CompletionReady({
+  message,
+  saving,
+  onComplete,
+}: {
+  message: string;
+  saving: boolean;
+  onComplete: () => void;
+}) {
+  return (
+    <section className="completionReady">
+      <div className="readyMark" aria-hidden="true">✓</div>
+      <span className="eyebrow">READY TO REFLECT</span>
+      <h1>答案已准备好</h1>
+      <p>五个问题都已安全保存。现在可以根据这些答案生成你的健康概览。</p>
+      {message && <div className="notice" role="alert">{message}</div>}
+      <button className="primary" onClick={onComplete} disabled={saving}>
+        {saving ? "正在生成…" : "生成健康概览"}
+      </button>
     </section>
   );
 }

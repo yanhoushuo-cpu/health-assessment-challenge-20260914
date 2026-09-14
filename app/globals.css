@@ -814,3 +814,51 @@ footer {
     animation-duration: 0.01ms !important;
   }
 }
+.completionReady,
+.recoveryPage {
+  text-align: center;
+  padding: 60px 24px;
+}
+.completionReady {
+  min-height: calc(100vh - 148px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 620px;
+  margin: auto;
+}
+.completionReady h1,
+.recoveryPage h1 {
+  font: 600 clamp(38px, 5vw, 58px) / 1.25 var(--serif);
+  color: var(--deep);
+  margin: 18px 0;
+}
+.completionReady > p,
+.recoveryPage > p {
+  color: #68766f;
+  line-height: 1.8;
+  max-width: 520px;
+  margin: 0 auto 26px;
+}
+.completionReady .notice {
+  width: min(520px, 100%);
+}
+.readyMark {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #dfe8dd;
+  color: var(--deep);
+  font-size: 27px;
+  margin-bottom: 25px;
+}
+.recoveryPage {
+  display: flex;
+  flex-direction: column;
+}
+.recoveryPage .primary {
+  align-self: center;
+}
