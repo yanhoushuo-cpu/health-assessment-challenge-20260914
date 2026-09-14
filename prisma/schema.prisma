@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Gender {
+  MALE
+  FEMALE
+}
+enum Goal {
+  LOSE_WEIGHT
+  MAINTAIN_WEIGHT
+  GAIN_WEIGHT
+}
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+enum AssessmentStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  EXPIRED
+}
+enum PaymentStatus {
+  SUCCESS
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  sessions Session[]
+  assessment Assessment?
+  subscription Subscription?
+  payments PaymentEvent[]
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique @db.Char(64)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+model Assessment {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  age Int?
+  gender Gender?
+  goal Goal?
+  heightCm Decimal? @db.Decimal(5,2)
+  weightKg Decimal? @db.Decimal(5,2)
+  targetWeightKg Decimal? @db.Decimal(5,2)
+  activityLevel ActivityLevel?
+  status AssessmentStatus @default(IN_PROGRESS)
+  version Int @default(0)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  result AssessmentResult?
+}
+model AssessmentResult {
+  id String @id @default(uuid()) @db.Uuid
+  assessmentId String @unique @db.Uuid
+  bmi Decimal @db.Decimal(6,1)
+  bmiCategory String @db.VarChar(20)
+  bmr Int
+  tdee Int
+  recommendedCalories Int
+  predictedTargetDate DateTime? @db.Timestamptz(3)
+  predictionCurve Json
+  algorithmVersion String @db.VarChar(40)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  assessment Assessment @relation(fields:[assessmentId], references:[id], onDelete:Cascade)
+}
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  status SubscriptionStatus @default(INACTIVE)
+  plan String @default("premium") @db.VarChar(30)
+  startsAt DateTime? @db.Timestamptz(3)
+  expiresAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  payments PaymentEvent[]
+}
+model PaymentEvent {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  subscriptionId String @db.Uuid
+  idempotencyKey String @db.VarChar(128)
+  plan String @db.VarChar(30)
+  status PaymentStatus @default(SUCCESS)
+  amount Int @default(0)
+  currency String @default("USD") @db.Char(3)
+  entitlementExpiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  subscription Subscription @relation(fields:[subscriptionId], references:[id], onDelete:Cascade)
+  @@unique([userId,idempotencyKey])
+  @@index([subscriptionId])
+}

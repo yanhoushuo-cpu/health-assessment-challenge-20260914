@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env*
+!.env.example
+coverage/
+test-results/
+playwright-report/
+.vercel/
+.superpowers/
+*.tsbuildinfo
+demo-sessions.json
+
+.local-postgres/
+.pg-local-password
