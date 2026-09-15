@@ -11,3 +11,5 @@ playwright-report/
 offline/
 *.tar
 *.tar.gz
+*.dump
+*.backup
