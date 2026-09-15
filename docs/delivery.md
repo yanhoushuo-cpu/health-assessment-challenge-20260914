@@ -23,6 +23,8 @@
 
 已增加生产 Dockerfile、Compose、HTTPS 入口、离线镜像导出工作流与真实容器重建后的会话/支付持久化测试。容器验证状态以 [Container deployment](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/containers.yml) 的实际运行结果为准，不把配置检查代替镜像运行成功。
 
+国内部署第一轮实际验证（代码 `1665bc2`）：[Quality 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950477691)，[Container deployment 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950477825)，包含生产镜像构建、迁移、测评、鉴权、并发 /pay 和容器重建后的持久化。该轮未执行可选镜像导出，也未验证公网域名/TLS。
+
 竞品完整体验也未完成：BetterMe 首页继续按钮会接受第三方条款，尚未获得确认。已实际观察的首页与设计推断分开记在 product-observation.md，不声称查看过未打开的页面。
 
 提交前由候选人填写真实姓名，按【姓名】_全栈挑战_YYYYMMDD 命名文档，并确认 AI 复盘反映自己实际参与的判断。当前未向招聘方发送邮件。
