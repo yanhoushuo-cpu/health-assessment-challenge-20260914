@@ -238,7 +238,7 @@ curl -H 'Cookie: health_session=这里填写demo文件内的随机token' "$BASE/
 
 匿名会话清除 cookie 后不能找回，也不能靠公开 sessionId 恢复。这是明确的安全取舍。
 
-当前首选[国内云服务器部署](docs/domestic-deployment.md)。以下 Supabase/Vercel 步骤仅作可选替代方案，尚未完成该平台的业务上线：
+当前采用[Sealos 杭州短期部署](docs/sealos-short-demo.md)，线上会话及重放方式见[交付记录](docs/delivery.md)。以下 Supabase/Vercel 步骤仅作可选替代方案，尚未完成该平台的业务上线：
 
 1. 创建专用 Supabase 项目，使用 PostgreSQL 连接信息。无需把 Supabase service_role key 给前端；迁移已启用业务表 RLS，且没有 anon/authenticated 策略。服务端连接角色必须是表 owner 或具有 BYPASSRLS；不要给浏览器这些凭据。也可以额外关闭未使用的 Data API。本项目只通过服务端数据库连接读写。
 2. `DATABASE_URL` 使用平台支持的 PostgreSQL pooler 连接并配置较小 `connection_limit`；迁移推荐 direct/session pooler 连接，避免 transaction pooler DDL 限制。需要 transaction pooler 时依据 Supabase/Prisma 当期文档设置 `pgbouncer=true` 等参数。通过 TLS 连接，不禁用证书验证。
@@ -246,7 +246,7 @@ curl -H 'Cookie: health_session=这里填写demo文件内的随机token' "$BASE/
 4. Vercel 导入此 GitHub 仓库，Next.js preset，Node 22。设置 DATABASE_URL、DEMO_MODE=true、APP_ORIGIN=实际线上域名；构建命令 `npm run build`。不向 Vercel 配置 TEST_DATABASE_URL，不把 migration 放入每次并发构建。
 5. 发布后用 cURL 与浏览器实际走完新 session、恢复、免费结果、/pay、付费结果及幂等重放，检查线上 Secure cookie、错误及脱敏字段。线上验证通过后才在交付记录填写 URL。
 
-未实现：账号注册/跨设备恢复、付费订单签名、退款、真实金额、限流/反滥用、数据删除自助入口及定期 retention job。互联网正式运营前要加入这些能力；当前公开地址只用于虚构数据演示。匿名 session 创建目前没有速率限制，不宣称已达生产防滥用水平。
+未实现：账号注册/跨设备恢复、真实支付签名与退款、按用户/IP 的精细反滥用、数据删除自助入口及业务 retention job。Sealos 代理已设全局请求/连接/带宽限制，演示 Job 到期清理资源；应用层 session 创建没有独立配额。不宣称这些演示限制等同生产防滥用或长期数据治理。
 
 ## AI 协作复盘
 
