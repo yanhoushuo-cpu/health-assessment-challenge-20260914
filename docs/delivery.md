@@ -19,11 +19,13 @@
 
 **没有公网演示 URL；不能视为本挑战全部完成。**
 
-用户已登录 Vercel/Supabase，创建了免费的空项目；随后明确要求环境尽量国内化，并表示暂无国内云资源、先准备部署方案。因此已停止海外部署，改为[国内云服务器 + Prisma/PostgreSQL](domestic-deployment.md)。尚未购买服务器、没有公网演示域名，没有线上业务数据或付费测试会话。不得将空平台项目当成已上线。代码不依赖 SQLite 或进程内数据替代 PostgreSQL。
+用户明确要求国内、免费公网部署，海外部署已停止。腾讯云上海 CloudBase 免费体验环境已创建且 CLI 已授权，但其 PostgreSQL 共享实例控制台明确禁用数据库直连，现有 Prisma 后端无法直接使用该实例。随后已登录 Sealos 杭州站：余额 5.00，PostgreSQL 0.5 核 / 512 MiB / 3 GiB / 单实例的控制台预估为 0.56/天，另需应用和流量费用。它是按量收费方案，不能称为长期免费；用户已同意最多使用现有 5 元余额进行短期演示，但要求不能欠费。尚未创建收费资源：目前只核实到余额通知，未找到能阻止超支的硬上限。详见[国内部署核验](domestic-deployment.md)。仍无公网业务 URL、线上业务数据或付费测试会话。代码不依赖 SQLite 或进程内数据替代 PostgreSQL。
 
 已增加生产 Dockerfile、Compose、HTTPS 入口、离线镜像导出工作流与真实容器重建后的会话/支付持久化测试。容器验证状态以 [Container deployment](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/containers.yml) 的实际运行结果为准，不把配置检查代替镜像运行成功。
 
 国内部署第一轮实际验证（代码 `1665bc2`）：[Quality 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950477691)，[Container deployment 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950477825)，包含生产镜像构建、迁移、测评、鉴权、并发 /pay 和容器重建后的持久化。该轮未执行可选镜像导出，也未验证公网域名/TLS。
+
+最新已核验代码 `7ba8f71`：[Quality 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950772111)、[Container deployment 成功](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/runs/34950772156)。以上状态对应明确提交；之后的部署记录文档更新不冒充已由这些运行覆盖。
 
 竞品完整体验也未完成：BetterMe 首页继续按钮会接受第三方条款，尚未获得确认。已实际观察的首页与设计推断分开记在 product-observation.md，不声称查看过未打开的页面。
 

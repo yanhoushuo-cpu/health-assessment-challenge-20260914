@@ -8,7 +8,7 @@
 
 这是匿名、成人、虚构支付的技术演示。不会收取费用，不提供医疗诊断。公网部署及 CI 的实际状态以 [交付记录](docs/delivery.md) 为准。
 
-**部署方向更新（2026-09-15）：**按用户要求优先国内网络，采用国内云服务器上的 Next.js + Prisma + PostgreSQL。详见[国内部署方案](docs/domestic-deployment.md)，包含 Docker Compose、HTTPS、离线镜像交付和重启持久化验收。Supabase/Vercel 是可选托管方案，不是本项目运行依赖。当前尚无已验证公网 URL。
+**部署方向更新（2026-09-15）：**按用户要求优先国内网络，保留 Next.js + Prisma + PostgreSQL，正在核验零额外支出部署。腾讯云免费共享数据库不提供直连，Sealos 则为按量计费，尚无满足预算约束的已上线方案。详见[国内部署方案](docs/domestic-deployment.md)，包含 Docker Compose、HTTPS、离线镜像交付和重启持久化验收。Supabase/Vercel 是可选托管方案，不是本项目运行依赖。当前尚无已验证公网 URL。
 
 ## 本地启动
 
