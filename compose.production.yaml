@@ -1,0 +1,88 @@
+name: qinghe
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: health
+      POSTGRES_DB: health
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a random database password in .env.deploy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U health -d health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  migrate:
+    image: ${MIGRATE_IMAGE:-qinghe-migrate:local}
+    build:
+      context: .
+      target: migrate
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://health:${POSTGRES_PASSWORD}@db:5432/health?connection_limit=2
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logs
+
+  app:
+    image: ${APP_IMAGE:-qinghe-app:local}
+    build:
+      context: .
+      target: app
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://health:${POSTGRES_PASSWORD}@db:5432/health?connection_limit=5
+      APP_ORIGIN: ${APP_ORIGIN:?Set the public HTTPS origin}
+      DEMO_MODE: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/v1/result').then(r=>process.exit(r.status===401?0:1)).catch(()=>process.exit(1))",
+        ]
+      start_period: 15s
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    logging: *logs
+
+  proxy:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    profiles: [public]
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      CADDY_SITE: ${CADDY_SITE:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    logging: *logs
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

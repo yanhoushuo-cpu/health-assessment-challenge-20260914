@@ -1,0 +1,16 @@
+.git
+node_modules
+.next
+.env*
+.vercel
+.superpowers
+.local-postgres
+.pg-local-password
+demo-sessions.json
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+*.tar
+*.tar.gz
+offline

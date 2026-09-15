@@ -8,6 +8,8 @@
 
 这是匿名、成人、虚构支付的技术演示。不会收取费用，不提供医疗诊断。公网部署及 CI 的实际状态以 [交付记录](docs/delivery.md) 为准。
 
+**部署方向更新（2026-09-15）：**按用户要求优先国内网络，采用国内云服务器上的 Next.js + Prisma + PostgreSQL。详见[国内部署方案](docs/domestic-deployment.md)，包含 Docker Compose、HTTPS、离线镜像交付和重启持久化验收。Supabase/Vercel 是可选托管方案，不是本项目运行依赖。当前尚无已验证公网 URL。
+
 ## 本地启动
 
 要求 Node.js 22、npm、PostgreSQL 17。锁文件固定依赖；Next.js 16.3.5 App Router、React 19、TypeScript strict、Prisma 6.19、Zod、Vitest、Playwright。Prisma 固定在已验证的 6.19，以减少此交付引入主版本迁移风险。
@@ -230,7 +232,7 @@ curl -H 'Cookie: health_session=这里填写demo文件内的随机token' "$BASE/
 
 匿名会话清除 cookie 后不能找回，也不能靠公开 sessionId 恢复。这是明确的安全取舍。
 
-Supabase/Vercel 部署步骤：
+当前首选[国内云服务器部署](docs/domestic-deployment.md)。以下 Supabase/Vercel 步骤仅作可选替代方案，尚未完成该平台的业务上线：
 
 1. 创建专用 Supabase 项目，使用 PostgreSQL 连接信息。无需把 Supabase service_role key 给前端；迁移已启用业务表 RLS，且没有 anon/authenticated 策略。服务端连接角色必须是表 owner 或具有 BYPASSRLS；不要给浏览器这些凭据。也可以额外关闭未使用的 Data API。本项目只通过服务端数据库连接读写。
 2. `DATABASE_URL` 使用平台支持的 PostgreSQL pooler 连接并配置较小 `connection_limit`；迁移推荐 direct/session pooler 连接，避免 transaction pooler DDL 限制。需要 transaction pooler 时依据 Supabase/Prisma 当期文档设置 `pgbouncer=true` 等参数。通过 TLS 连接，不禁用证书验证。

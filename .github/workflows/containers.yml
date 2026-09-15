@@ -1,0 +1,55 @@
+name: Container deployment
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      export_images:
+        description: Export tested Linux amd64 images for offline server installation
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_PASSWORD: container_ci_only_629124
+      APP_ORIGIN: https://container-test.invalid
+      COMPOSE_FILE: compose.production.yaml:deploy/compose.test.yaml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build deployable images
+        run: docker compose build
+      - name: Run migrations and wait for app
+        run: docker compose up -d --wait
+      - name: Verify real container funnel and payment
+        run: node tests/deployment/smoke.mjs prepare
+      - name: Verify persistence across service recreation
+        run: |
+          docker compose down
+          docker compose up -d --wait
+          node tests/deployment/smoke.mjs verify-restart
+      - name: Export images for a server without Docker Hub access
+        if: github.event_name == 'workflow_dispatch' && inputs.export_images
+        run: |
+          mkdir -p offline
+          docker pull caddy:2-alpine
+          docker save qinghe-app:local qinghe-migrate:local postgres:17-alpine caddy:2-alpine | gzip > offline/qinghe-linux-amd64.tar.gz
+          cd offline && sha256sum qinghe-linux-amd64.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.export_images
+        with:
+          name: qinghe-offline-images
+          path: offline/
+          retention-days: 7
+      - name: Diagnostic logs
+        if: failure()
+        run: docker compose logs --tail=100
+      - name: Remove isolated CI resources
+        if: always()
+        run: docker compose down --volumes

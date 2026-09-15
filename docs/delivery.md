@@ -1,4 +1,4 @@
-# 实际交付状态 · 2026-09-14
+# 实际交付状态 · 2026-09-15
 
 项目：青禾健康评估，Next.js + Prisma + PostgreSQL。
 
@@ -19,7 +19,9 @@
 
 **没有公网演示 URL；不能视为本挑战全部完成。**
 
-实际检查发现 Vercel CLI/浏览器未登录，Supabase 浏览器未登录。已请求用户完成这两个平台的登录。下一步是登录后创建或选择 Supabase 项目，配置数据库私有连接，执行 migrations/seed，部署 Vercel，再从公网验证 funnel + /pay 与 paid/unpaid 差异，并更新线上 demo session。代码不依赖 SQLite 或进程内数据替代 PostgreSQL。
+用户已登录 Vercel/Supabase，创建了免费的空项目；随后明确要求环境尽量国内化，并表示暂无国内云资源、先准备部署方案。因此已停止海外部署，改为[国内云服务器 + Prisma/PostgreSQL](domestic-deployment.md)。尚未购买服务器、没有公网演示域名，没有线上业务数据或付费测试会话。不得将空平台项目当成已上线。代码不依赖 SQLite 或进程内数据替代 PostgreSQL。
+
+已增加生产 Dockerfile、Compose、HTTPS 入口、离线镜像导出工作流与真实容器重建后的会话/支付持久化测试。容器验证状态以 [Container deployment](https://github.com/yanhoushuo-cpu/health-assessment-challenge-20260914/actions/workflows/containers.yml) 的实际运行结果为准，不把配置检查代替镜像运行成功。
 
 竞品完整体验也未完成：BetterMe 首页继续按钮会接受第三方条款，尚未获得确认。已实际观察的首页与设计推断分开记在 product-observation.md，不声称查看过未打开的页面。
 

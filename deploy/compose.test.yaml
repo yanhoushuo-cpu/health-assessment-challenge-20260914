@@ -1,0 +1,4 @@
+# CI only: no public TLS proxy; exposes the app solely on loopback.
+services:
+  app:
+    ports: ["127.0.0.1:3300:3000"]
