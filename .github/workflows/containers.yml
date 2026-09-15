@@ -8,10 +8,17 @@ on:
         description: Export tested Linux amd64 images for offline server installation
         type: boolean
         default: false
+      publish_images:
+        description: Publish tested application and migration images to GHCR
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   containers:
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -41,6 +48,18 @@ jobs:
           docker pull caddy:2-alpine
           docker save qinghe-app:local qinghe-migrate:local postgres:17-alpine caddy:2-alpine | gzip > offline/qinghe-linux-amd64.tar.gz
           cd offline && sha256sum qinghe-linux-amd64.tar.gz > SHA256SUMS
+      - name: Publish verified application images
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_images
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker tag qinghe-app:local "$image_base/app:$GITHUB_SHA"
+          docker tag qinghe-migrate:local "$image_base/migrate:$GITHUB_SHA"
+          docker push "$image_base/app:$GITHUB_SHA"
+          docker push "$image_base/migrate:$GITHUB_SHA"
+          docker logout ghcr.io
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch' && inputs.export_images
         with:
