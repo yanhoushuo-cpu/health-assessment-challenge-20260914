@@ -8,7 +8,7 @@
 
 这是匿名、成人、虚构支付的技术演示。不会收取费用，不提供医疗诊断。公网部署及 CI 的实际状态以 [交付记录](docs/delivery.md) 为准。
 
-**部署方向更新（2026-09-15）：**按用户要求优先国内网络，保留 Next.js + Prisma + PostgreSQL，正在核验零额外支出部署。腾讯云免费共享数据库不提供直连，Sealos 则为按量计费，尚无满足预算约束的已上线方案。详见[国内部署方案](docs/domestic-deployment.md)，包含 Docker Compose、HTTPS、离线镜像交付和重启持久化验收。Supabase/Vercel 是可选托管方案，不是本项目运行依赖。当前尚无已验证公网 URL。
+**线上演示（2026-09-15 已验证）：** https://uvyxrpacfugt.sealoshzh.site/ 。部署在 Sealos 杭州，Next.js + Prisma + PostgreSQL，使用现有体验余额。临时环境预计于北京时间 **2026-09-16 00:11:22** 停止，随后自动删除云端资源和演示数据；不是长期免费托管。浏览器完整流程、API 权限/支付以及 Pod 重建后持久化均已通过。详见 [交付记录](docs/delivery.md)。
 
 ## 本地启动
 
@@ -43,12 +43,12 @@ npm start
 
 ## 配置
 
-| 变量 | 用途 |
-| --- | --- |
-| `DATABASE_URL` | 应用 Prisma PostgreSQL 连接。线上必须使用私有环境变量。 |
-| `TEST_DATABASE_URL` | 独立测试库，数据库名必须以 `_test` 结尾。 |
-| `APP_ORIGIN` | 浏览器写请求允许的完整 origin，含协议与端口；线上设为实际域名。缺省时使用请求 URL origin。 |
-| `DEMO_MODE` | 只有字符串 `true` 开启模拟支付与 demo seed。部署本挑战必须开启。 |
+| 变量                | 用途                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`      | 应用 Prisma PostgreSQL 连接。线上必须使用私有环境变量。                                    |
+| `TEST_DATABASE_URL` | 独立测试库，数据库名必须以 `_test` 结尾。                                                  |
+| `APP_ORIGIN`        | 浏览器写请求允许的完整 origin，含协议与端口；线上设为实际域名。缺省时使用请求 URL origin。 |
+| `DEMO_MODE`         | 只有字符串 `true` 开启模拟支付与 demo seed。部署本挑战必须开启。                           |
 
 不需要 `SESSION_SECRET`：身份是高熵随机 token，数据库只存 SHA-256 摘要，并非可伪造的客户端签名内容。开发密码仅用于本地回环地址/CI。真实 `.env`、demo cookie、`.vercel` 均不提交。
 
@@ -146,25 +146,31 @@ erDiagram
 
 身份凭据为 `health_session` cookie：32 随机字节、HttpOnly、SameSite=Lax、30 天、production Secure。`sessionId`/`userId` 只用于标识，不能拿来冒充 token。每次请求查 session 是否存在、是否过期，并始终以其 userId 查询。浏览器写入检查 Origin 和 Sec-Fetch-Site，curl 可不发送 Origin。
 
-| 方法与路径 | 请求 | 成功 data / 关键异常 |
-| --- | --- | --- |
-| `POST /api/v1/session` | `{}` | 201 新建或 200 恢复；`sessionId,userId,expiresAt`；Set-Cookie 仅新建时设置。无效/过期旧 cookie 建立新匿名身份。 |
-| `GET /api/v1/assessment/current` | 无 | `id,currentStep,completedSteps,progress,data,version,status`；无身份 401。 |
-| `PATCH /api/v1/assessment/current/steps/age` | `{version,age}` | 返回更新后的完整进度；年龄 18–100 整数。 |
-| `PATCH .../steps/gender` | `{version,gender}` | `MALE / FEMALE`；公式所需参数，不代表完整性别认同模型。 |
-| `PATCH .../steps/goal` | `{version,goal}` | `LOSE_WEIGHT / MAINTAIN_WEIGHT / GAIN_WEIGHT`。 |
-| `PATCH .../steps/body` | `{version,heightCm,weightKg,targetWeightKg}` | 身高 120–230 cm，体重及目标 35–300 kg，最多 2 位小数，目标方向与 BMI 校验。 |
-| `PATCH .../steps/activity` | `{version,activityLevel}` | `SEDENTARY / LIGHT / MODERATE / ACTIVE / VERY_ACTIVE`。 |
-| `POST /api/v1/assessment/current/complete` | `{version}` | 原子保存结果并冻结答案，返回当前授权结果；缺数据/版本过期 409。已完成的重放安全，不新增结果。 |
-| `GET /api/v1/result` | 无 | 免费或完整结果；未完成 404，缺失/过期身份 401。 |
-| `POST /api/v1/pay`、`POST /pay` | `{plan:"premium"}` + `Idempotency-Key` | `paymentId,status,plan,amount:0,currency:"USD",expiresAt,simulated:true`。 |
+| 方法与路径                                   | 请求                                         | 成功 data / 关键异常                                                                                            |
+| -------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/session`                       | `{}`                                         | 201 新建或 200 恢复；`sessionId,userId,expiresAt`；Set-Cookie 仅新建时设置。无效/过期旧 cookie 建立新匿名身份。 |
+| `GET /api/v1/assessment/current`             | 无                                           | `id,currentStep,completedSteps,progress,data,version,status`；无身份 401。                                      |
+| `PATCH /api/v1/assessment/current/steps/age` | `{version,age}`                              | 返回更新后的完整进度；年龄 18–100 整数。                                                                        |
+| `PATCH .../steps/gender`                     | `{version,gender}`                           | `MALE / FEMALE`；公式所需参数，不代表完整性别认同模型。                                                         |
+| `PATCH .../steps/goal`                       | `{version,goal}`                             | `LOSE_WEIGHT / MAINTAIN_WEIGHT / GAIN_WEIGHT`。                                                                 |
+| `PATCH .../steps/body`                       | `{version,heightCm,weightKg,targetWeightKg}` | 身高 120–230 cm，体重及目标 35–300 kg，最多 2 位小数，目标方向与 BMI 校验。                                     |
+| `PATCH .../steps/activity`                   | `{version,activityLevel}`                    | `SEDENTARY / LIGHT / MODERATE / ACTIVE / VERY_ACTIVE`。                                                         |
+| `POST /api/v1/assessment/current/complete`   | `{version}`                                  | 原子保存结果并冻结答案，返回当前授权结果；缺数据/版本过期 409。已完成的重放安全，不新增结果。                   |
+| `GET /api/v1/result`                         | 无                                           | 免费或完整结果；未完成 404，缺失/过期身份 401。                                                                 |
+| `POST /api/v1/pay`、`POST /pay`              | `{plan:"premium"}` + `Idempotency-Key`       | `paymentId,status,plan,amount:0,currency:"USD",expiresAt,simulated:true`。                                      |
 
 步骤正常顺序 `age → gender → goal → body → activity → complete`。未来步骤 409，未知步骤 404，非法参数 422，非法 JSON 400，不支持内容类型 415，跨站写入 403，请求过大 413。完成后写入 409。版本冲突错误码 `VERSION_CONFLICT`；应重新 GET 显示服务器最新答案，不可悄悄覆盖。数据库暂时争用返回 503 + Retry-After，可保留原版本或支付 key 重试。内部错误不返回堆栈。
 
 免费结果示例（保护字段完全不存在）：
 
 ```json
-{"data":{"bmi":26.2,"bmiCategory":"OVERWEIGHT","subscriptionRequired":true}}
+{
+  "data": {
+    "bmi": 26.2,
+    "bmiCategory": "OVERWEIGHT",
+    "subscriptionRequired": true
+  }
+}
 ```
 
 会员增加 `bmr,tdee,recommendedCalories,predictedTargetDate,predictionCurve,algorithmVersion`，`subscriptionRequired:false`。授权要求 ACTIVE、开始时间不晚于现在、过期时间晚于现在；不依赖后台定时任务将状态改为 EXPIRED。订阅过期后下一次读取立即裁剪。完成接口也经过同样 DTO，不能旁路泄漏。
@@ -209,12 +215,12 @@ BMI = kg / m²。按**未舍入**值分类 `<18.5 / <25 / <30 / ≥30`，显示�
 
 为何选择这些场景：本项目主要风险是中断丢数据、并发覆盖、付费字段旁路泄漏、重复支付发放，以及数值/日期边界；测试针对这些可造成实际错误的分支，而非凑接口数量。
 
-| 层次 | 验证范围 |
-| --- | --- |
-| Unit | BMI 阈值及未舍入分类；两种公式常数、活动系数、热量/下限；方向冲突；空值/缺失/字符串/NaN/Infinity/越界；小数精度；UTC/无效时间/溢出；维持和曲线终点。 |
+| 层次                        | 验证范围                                                                                                                                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unit                        | BMI 阈值及未舍入分类；两种公式常数、活动系数、热量/下限；方向冲突；空值/缺失/字符串/NaN/Infinity/越界；小数精度；UTC/无效时间/溢出；维持和曲线终点。                                                                                                   |
 | PostgreSQL HTTP integration | hash-only session、恢复/过期/伪造；分步保存/回退/重复/乱序；同版本竞争只一方成功；旧版本完成拒绝；重复/并发完成；未知字段/注入/JSON/请求大小/Origin；结果授权；支付相同 key 并发、跨用户同 key；过期降权；数据库 CHECK；人为数据库写入故障下完整回滚。 |
-| Contention | 测试连接池只允许 2 个连接；持有真实 User 行锁 3 秒再发并发支付，超过 Prisma 默认 2 秒获取等待，验证配置及幂等性。 |
-| Browser E2E | 真实 Next.js 和真实 PostgreSQL，逐步填写、中断刷新、免费接口保护字段不存在、模拟支付后完整字段、手机宽度布局。 |
+| Contention                  | 测试连接池只允许 2 个连接；持有真实 User 行锁 3 秒再发并发支付，超过 Prisma 默认 2 秒获取等待，验证配置及幂等性。                                                                                                                                      |
+| Browser E2E                 | 真实 Next.js 和真实 PostgreSQL，逐步填写、中断刷新、免费接口保护字段不存在、模拟支付后完整字段、手机宽度布局。                                                                                                                                         |
 
 每次 `npm test` 创建随机 schema，迁移后执行，最后只 DROP 自己生成的 schema；不执行整库 reset。测试库名称保护 `_test` 防误用，仍应使用独立测试库凭据。各用例创建独立用户；测试内用于故障注入的 CHECK 在 finally 删除。测试 schema 隔离允许并行运行多个测试进程。
 
@@ -255,5 +261,3 @@ curl -H 'Cookie: health_session=这里填写demo文件内的随机token' "$BASE/
 这些是代理提出与审查后实际发生的修正，**不是声称候选人亲自做过的独立判断**。候选人提交前应读代码、运行测试并用自己的话解释，补充自己真正接受/否决的决策。本项目没有把材料中 JSONB/前端隐藏的假设示例伪造为历史；从设计一开始就采用 typed columns 与服务端 DTO。
 
 参考产品观察与实施过程见 [产品观察](docs/product-observation.md)、[设计](docs/design.md) 和 [交付记录](docs/delivery.md)。
-
-
